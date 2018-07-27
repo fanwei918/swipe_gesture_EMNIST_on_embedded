@@ -33,7 +33,10 @@ img_rows, img_cols = 28, 28
 
 
 #%%
-# EMNIST letters: 
+# EMNIST letters: load from the EMNIST letters dataset. contains hand-writting of cap and small a-z. 
+# thing is, in this dataset A and a are considered as same category. which may not be suitable for application ;
+# also It may places difficulties for model training.
+# the y_train,y_test are valued from 1 to 26. so if categorize the y vec, you will get n_classes =  27
 from scipy.io import loadmat
 emnist = loadmat('emnist-letters.mat')
 # load training dataset
@@ -55,6 +58,7 @@ x_test = x_test.reshape(x_test.shape[0], 28, 28,order="A")
 
 
 #    # getting c, s, w, which are : 1 swipt; cap/non-cap are similar; not similar with digits
+# And to concatenate with MNIST data (with digit 4,5 removed due to more than 1 swap), I modified the lable in y, a ad-hoc move, don't use it if not doing samething. 
 x_train_letter_c =  x_train[y_train[:,0]==3] 
 y_train_letter_c =  y_train[y_train[:,0]==3] 
 x_test_letter_c =  x_test[y_test[:,0]==3] 
@@ -110,6 +114,10 @@ for n in range(30000,30100):
 
 #%%
 # augment and manipulate the data, to make it more like our real data
+# our real data is boolean (either 0 or 1 for each entry). And is very very slim! the MNIST/EMNIST data are kind of bold. 
+# so what we do here is apply threshold; multiple thresholds are chosen. 
+# e.g if thres = 1, the MNIST get even bolder (all entries >= 1 goes to 255. later it will divided by 255.)
+# if thres = 250,the derived data will be quite slim. 
 
 def boolerize(X, threshold):
     X1 = X.copy()
@@ -171,6 +179,7 @@ y_test = keras.utils.to_categorical(y_test, num_classes)
 
 
 #%%
+# training use 2 FC layers. acc on test set is 97%. but not working well on real data actually.
 
 num_classes = 11
 epochs = 50
@@ -219,7 +228,8 @@ print(c_matrix.astype(int))
 
 #%%
 
-
+# below is given a input example, how to process data to meet the NN's requirement. 
+# input example is (x,y)  coordinate tuples, represents the trace of the swipe input. 
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -248,28 +258,35 @@ for n in range(x.shape[0]):
     
 #plt.imshow(mat0)
     
-
-    
-x += 80
+#----------------------------------------------------------------------------
+# in below, we find a proper square, lenght is n*28, to fit in the hand writing.   
+x += 80 # this step has no impact I feel. 
 
 dx = x.max() - x.min()
 dy = y.max() - y.min()
 
 ds = max(dx,dy)
 
-margin = 60
+margin = 60 # allow some margins at 4 sides.
 
 ds += margin
 
+# find the best n for 28*n square
 for n_mul in range(1,18):
     if ds < n_mul*28:
         break
 
+        # the  origin of the square mat
 x_start = (x.min()+x.max())//2 - ds//2
 y_start = (y.min()+y.max())//2 - ds//2
 
+# the coord in the square mat
 x_new = x - x_start
 y_new = y - y_start
+
+# creat the 28*28 mat same as MNIST dataset.  
+# just find the mapping from each point in square mat to the position in the 28*28 mat. 
+# then assign the position in 28*28 mat to be 1
 
 new_mat2 = np.zeros((28,28))
 
@@ -280,44 +297,11 @@ for n in range(n_points):
     new_mat2[x_in_new_mat2[n]][y_in_new_mat2[n]] = 1
 
 
-
-#new_mat = np.zeros((n*28,n*28)) 
-#for n in range(x.shape[0]):
-#    new_mat[x_new[n].astype(int)][y_new[n].astype(int)] = 1
-#    
-##plt.imshow(new_mat)
-#
-#def shrink_image(original_image, threshold = 0.1):
-#    '''
-#    :param original_image: the original image with (28*n) x (28*n) dimension, a numpy array
-#    :return: return the shrinked image 28 x 28, a numpy array
-#    '''
-#    n = original_image.shape[0]//28
-#    x1=0
-#    
-#    image = np.zeros((28, 28))
-#    while x1 < 28:
-#        y1=0
-#        while y1 < 28:
-#
-#            sample_square = original_image[x1*n: (x1 + 1)*n, y1*n: (y1 + 1)*n]
-#            count = np.sum(sample_square.flatten())
-#            if count > 0:
-#                image[x1][y1] = 1
-#
-#            y1 += 1
-#
-#        x1 += 1
-#
-#    return image
-#
-#
-#
-#new_mat2 = shrink_image(new_mat,0.00001)
-
 plt.imshow(new_mat2)
 
-
+# in this block above, the function can be useful for any task
+# that you want to crop a proper area for fiiting the object you are interseted in. 
+#--------------------------------------------------------------------------------
 
 #%%
 
@@ -350,7 +334,7 @@ print('};')
 
 
 #%%
-    
+# for debugging network and port to C. 
 from keras import backend as K
 
 nn_input = new_mat2.reshape(1,28,28,1) 
