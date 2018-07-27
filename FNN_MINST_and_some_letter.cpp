@@ -85,4 +85,4 @@ int classify(int * mnist_vec)
     return max_pos;
 }
 
-
+ 
