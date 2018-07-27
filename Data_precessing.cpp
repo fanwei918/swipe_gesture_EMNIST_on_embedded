@@ -63,3 +63,4 @@ void mnist_from_trace(int* x, int* y, int n_points, int* mnist_vec)
     }
     
 }
+ 
